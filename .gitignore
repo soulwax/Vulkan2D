@@ -20,3 +20,4 @@ latex/
 
 migrate.sh
 author.py
+.project_root_tree.txt
