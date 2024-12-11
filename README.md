@@ -13,6 +13,17 @@ simple API, requiring no Vulkan experience to use.
 
 Check out the [quick-start](docs/QuickStart.md) guide.
 
+
+Cloning
+========
+
+Make sure to clone with the --recursive flag. Otherwise the VulkanMemoryAllocator won't get cloned with the repo.
+
+```sh
+git clone --recursive git@github.com:soulwax/Vulkan2D.git
+```
+
+
 Features
 ========
 
