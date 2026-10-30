@@ -67,6 +67,8 @@ uint32_t vk2dTextureGetID(VK2DTexture tex);
 /// \param tex Texture to free
 void vk2dTextureFree(VK2DTexture tex);
 
+bool vk2dTextureCopyPixels(VK2DTexture tex, void *outPixels);
+
 #ifdef __cplusplus
 };
 #endif
