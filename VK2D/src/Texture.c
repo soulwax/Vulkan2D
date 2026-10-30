@@ -12,6 +12,7 @@
 #include "VK2D/Validation.h"
 #include "VK2D/stb_image.h"
 #include "VK2D/Logger.h"
+#include "VK2D/LogicalDevice.h"
 
 static void _vk2dTextureAddToTextureArray(VK2DTexture tex) {
     VK2DRenderer gRenderer = vk2dRendererGetPointer();
@@ -227,4 +228,85 @@ void vk2dTextureFree(VK2DTexture tex) {
 uint32_t vk2dTextureGetID(VK2DTexture tex) {
     uint32_t val = SDL_GetAtomicInt(&tex->descriptorIndex);
     return val;
+}
+
+bool vk2dTextureCopyPixels(VK2DTexture tex, void *outPixels) {
+	VK2DRenderer gRenderer = vk2dRendererGetPointer();
+	VK2DLogicalDevice dev = vk2dRendererGetDevice();
+	if (gRenderer == NULL || dev == NULL || tex == NULL || tex->img == NULL || outPixels == NULL)
+		return false;
+
+	uint32_t w = tex->img->width;
+	uint32_t h = tex->img->height;
+	VkDeviceSize size = (VkDeviceSize)w * h * 4;
+
+	VK2DBuffer stage = vk2dBufferCreate(dev, size, VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+										VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	if (stage == NULL)
+		return false;
+
+	VkCommandBuffer cb = vk2dLogicalDeviceGetSingleUseBuffer(dev);
+	if (cb == VK_NULL_HANDLE) {
+		vk2dBufferFree(stage);
+		return false;
+	}
+
+	VkImageMemoryBarrier barrier = {0};
+	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	barrier.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	barrier.image = tex->img->img;
+	barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	barrier.subresourceRange.baseMipLevel = 0;
+	barrier.subresourceRange.levelCount = 1;
+	barrier.subresourceRange.baseArrayLayer = 0;
+	barrier.subresourceRange.layerCount = 1;
+	barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+	vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+						 0, 0, VK_NULL_HANDLE, 0, VK_NULL_HANDLE, 1, &barrier);
+
+	VkBufferImageCopy region = {0};
+	region.bufferOffset = 0;
+	region.bufferRowLength = 0;
+	region.bufferImageHeight = 0;
+	region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	region.imageSubresource.mipLevel = 0;
+	region.imageSubresource.baseArrayLayer = 0;
+	region.imageSubresource.layerCount = 1;
+	region.imageExtent.width = w;
+	region.imageExtent.height = h;
+	region.imageExtent.depth = 1;
+
+	vkCmdCopyImageToBuffer(cb, tex->img->img, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, stage->buf, 1, &region);
+
+	barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+	barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+	barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+	vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
+						 0, 0, VK_NULL_HANDLE, 0, VK_NULL_HANDLE, 1, &barrier);
+
+	vk2dLogicalDeviceSubmitSingleBuffer(dev, cb);
+
+	void *mapped = NULL;
+	VkResult res = vmaMapMemory(gRenderer->vma, stage->mem, &mapped);
+	if (res == VK_SUCCESS && mapped != NULL) {
+		const uint8_t *src = (const uint8_t *)mapped;
+		uint8_t *dst = (uint8_t *)outPixels;
+		for (uint32_t i = 0; i < w * h; i++) {
+			dst[i * 4 + 0] = src[i * 4 + 2];
+			dst[i * 4 + 1] = src[i * 4 + 1];
+			dst[i * 4 + 2] = src[i * 4 + 0];
+			dst[i * 4 + 3] = src[i * 4 + 3];
+		}
+		vmaUnmapMemory(gRenderer->vma, stage->mem);
+	}
+
+	vk2dBufferFree(stage);
+	return res == VK_SUCCESS;
 }
