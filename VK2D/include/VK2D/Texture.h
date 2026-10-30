@@ -2,8 +2,9 @@
 /// \author Paolo Mazzon
 /// \brief Makes managing textures samplers and off-screen rendering simpler
 #pragma once
-#include <vulkan/vulkan.h>
 #include "VK2D/Structs.h"
+#include <vulkan/vulkan.h>
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -21,19 +22,22 @@ VK2DTexture vk2dTextureLoadFromImage(VK2DImage image);
 /// \warning Textures created with this function are NOT valid render targets
 VK2DTexture vk2dTextureLoad(const char *filename);
 
-/// \brief Same as vk2dTextureLoad but it uses a byte buffer instead of pulling from a file
+/// \brief Same as vk2dTextureLoad but it uses a byte buffer instead of pulling
+/// from a file
 /// \param data Pointer to the image data, either png, bmp, jpg, or tiff
 /// \param size Size in bytes of the data buffer
 /// \return Returns a new texture or NULL if it failed
 /// \warning Textures created with this function are NOT valid render targets
 VK2DTexture vk2dTextureFrom(const void *data, int size);
 
-/// \brief Creates a texture meant as a drawing target - see `vk2dRendererSetTarget`
+/// \brief Creates a texture meant as a drawing target - see
+/// `vk2dRendererSetTarget`
 /// \param w Width of the texture
 /// \param h Height of the texture
 /// \return Returns a new texture or NULL if it failed
-/// \warning If you do not completely fill the created texture (ie, with something like `vk2dRendererEmpty` or
-/// `vk2dRendererClear`) before you draw this texture it ***will*** cause crashes on certain hardware.
+/// \warning If you do not completely fill the created texture (ie, with
+/// something like `vk2dRendererEmpty` or `vk2dRendererClear`) before you draw
+/// this texture it ***will*** cause crashes on certain hardware.
 VK2DTexture vk2dTextureCreate(float w, float h);
 
 /// \brief Gets the width in pixels of a texture
@@ -58,7 +62,8 @@ VK2DImage vk2dTextureGetImage(VK2DTexture tex);
 
 /// \brief Returns a unique ID for this texture
 /// \param tex Texture to get the id of
-/// \return Returns a unique uint32_t ID for this texture, used for sprite batching/user shaders
+/// \return Returns a unique uint32_t ID for this texture, used for sprite
+/// batching/user shaders
 ///
 /// This function is thread-safe.
 uint32_t vk2dTextureGetID(VK2DTexture tex);
